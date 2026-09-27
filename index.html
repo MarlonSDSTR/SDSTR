@@ -835,7 +835,19 @@ function defaultNav(){return seed().nav;}
 /* ============ STATE ============ */
 let IMG={}; /* uploaded photos, id -> dataURL, loaded from IndexedDB at boot */
 let state=load();
-function load(){try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s&&s.properties){migrate(s);return s;}}catch(e){}return seed();}
+/* One-time portfolio reconcile against Marlon's authoritative list (Sep 2026).
+   Idempotent + version-guarded: removes junk/duplicate stubs and a delisted property,
+   renames two to match the master list. Runs once, then never again. */
+function reconcilePortfolio(s){
+  if(!s)return;
+  if(s.meta&&s.meta.portfolioReconcileV===1)return;
+  var remove={'1939 S Pacific St':1,'Robles':1,'5511 Los Robles':1,'722 Arbuckle A':1};
+  if(Array.isArray(s.properties))s.properties=s.properties.filter(function(p){return !remove[p.nickname];});
+  var rename={'239 S Helix':'239 S Helix Unit 9','722 Arbuckle Place':'722 Arbuckle A'};
+  (s.properties||[]).forEach(function(p){if(rename[p.nickname])p.nickname=rename[p.nickname];});
+  s.meta=s.meta||{};s.meta.portfolioReconcileV=1;
+}
+function load(){let s;try{s=JSON.parse(localStorage.getItem(LS_KEY));}catch(e){}if(s&&s.properties){migrate(s);}else{s=seed();}reconcilePortfolio(s);return s;}
 function migrate(s){
   if(!Array.isArray(s.nav)){s.nav=defaultNav();}
   delete s.pipeline;delete s.reviews;delete s.resources;
