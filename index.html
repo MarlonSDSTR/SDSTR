@@ -287,33 +287,7 @@ select:focus,input:focus,textarea:focus{outline:none;border-color:var(--teal);bo
 .pill-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
 .helpbox{background:#EEF6FA;border:1px solid #cfe4ee;border-radius:10px;padding:13px 15px;font-size:13px;color:var(--navy2);margin-bottom:16px}
 .helpbox b{color:var(--teal)}
-/* MOBILE: sidebar becomes a slide-in drawer, content fills the screen */
-.hamburger{display:none}
-.navbackdrop{display:none}
-@media(max-width:820px){
-  .shell{grid-template-columns:1fr}
-  .side{
-    position:fixed;top:0;left:0;height:100vh;height:100dvh;width:274px;max-width:84vw;
-    z-index:120;transform:translateX(-100%);transition:transform .24s ease;
-    box-shadow:0 0 44px rgba(0,0,0,.42)
-  }
-  #app.navopen .side{transform:translateX(0)}
-  .navbackdrop{position:fixed;inset:0;background:rgba(6,20,33,.5);z-index:110;
-    opacity:0;pointer-events:none;transition:opacity .24s ease}
-  #app.navopen .navbackdrop{display:block;opacity:1;pointer-events:auto}
-  .hamburger{
-    display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
-    width:38px;height:38px;padding:0;background:var(--bg);border:1px solid var(--line);
-    border-radius:8px;font-size:19px;line-height:1;color:var(--ink2)
-  }
-  .hamburger:hover{background:#e6edf2;color:var(--ink)}
-  .topbar{padding:10px 14px;gap:10px;position:sticky;top:0;z-index:40}
-  .topbar .gsearch{max-width:none}
-  .content{padding:18px 16px 90px}
-  .main{min-height:100vh;min-height:100dvh}
-  .kv{grid-template-columns:1fr}
-}
-@media(max-width:820px){.clocks{display:none}}
+@media(max-width:760px){.shell{grid-template-columns:1fr}.side{position:relative;height:auto}.kv{grid-template-columns:1fr}}
 
 /* NAV manage button */
 .navmanage{padding:6px 12px 10px}
@@ -450,7 +424,6 @@ select:focus,input:focus,textarea:focus{outline:none;border-color:var(--teal);bo
     </aside>
     <div class="main">
       <div class="topbar">
-        <button class="hamburger" id="hamburger" onclick="toggleNav()" aria-label="Open menu">☰</button>
         <div class="gsearch">
           <span class="mag">⌕</span>
           <input id="globalsearch" placeholder="Search everything: properties, replies, tasks, contacts…" oninput="globalSearch(this.value)" onblur="setTimeout(()=>hideSearch(),180)">
@@ -467,7 +440,6 @@ select:focus,input:focus,textarea:focus{outline:none;border-color:var(--teal);bo
 </div>
 
 <input type="file" id="fileimport" accept="application/json" style="display:none">
-<div class="navbackdrop" id="navbackdrop" onclick="closeNav()"></div>
 <div id="toast"></div>
 <div class="lightbox" id="lightbox" onclick="this.style.display='none'"><img id="lightboximg" src=""></div>
 
@@ -823,7 +795,10 @@ const nav=[
  {id:"guestcomms",label:"Guest Comms",icon:"✎",group:"Operations",type:"builtin",view:"guestcomms"},
  {id:"quickreplies",label:"Quick Replies",icon:"⚡",group:"Operations",type:"builtin",view:"quickreplies"},
  {id:"workflows",label:"Workflows",icon:"⇄",group:"Operations",type:"builtin",view:"workflows"},
+ {id:"upsells",label:"Upsells",icon:"↑",group:"Operations",type:"builtin",view:"upsells"},
+ {id:"lostfound",label:"Lost & Found",icon:"⚑",group:"Operations",type:"builtin",view:"lostfound"},
  {id:"properties",label:"Properties",icon:"⌂",group:"Portfolio",type:"builtin",view:"properties"},
+ {id:"propmap",label:"Property Map",icon:"⌗",group:"Portfolio",type:"builtin",view:"propmap"},
  {id:"cleaners",label:"Cleaners",icon:"✦",group:"Portfolio",type:"builtin",view:"cleaners"},
  {id:"faqs",label:"FAQs",icon:"?",group:"Knowledge",type:"builtin",view:"faqs"},
  {id:"contacts",label:"Contacts",icon:"☎",group:"Knowledge",type:"builtin",view:"contacts"},
@@ -848,6 +823,7 @@ return {
  nav,
  activity:[],
  quickLaunch,tasks:[],properties,cleaners,guestComms,quickReplies,triage,contacts,faqs,
+ upsells:[],lostfound:[],upsellCatalog:[],settings:{},
  workflows,maintenance:[
    {id:uid(),property:"2464 Jefferson St",issue:"Front-door smart lock — unknown issue detected (Guesty lock alert).",status:"Open",priority:"Normal",vendor:"Robert (Handyman)",reported:new Date().toISOString().slice(0,10),notes:"From Guesty lock alert. Confirm battery / resync."}
  ],
@@ -867,6 +843,21 @@ function migrate(s){
   if(!Array.isArray(s.activity))s.activity=[];
   if(!s.nav.some(x=>x.id==='activity')){const vi=s.nav.findIndex(x=>x.id==='vault');const item={id:"activity",label:"Activity log",icon:"◷",group:"Reporting",type:"builtin",view:"activity"};if(vi>=0)s.nav.splice(vi,0,item);else s.nav.push(item);}
   (s.properties||[]).forEach(p=>{if(!p.bedsBaths&&(p.beds||p.baths))p.bedsBaths=[p.beds?p.beds+'BR':'',p.baths?p.baths+'BA':''].filter(Boolean).join(' / ');});
+  [['propmap','properties'],['upsells','quickreplies'],['lostfound','upsells']].forEach(function(pair){
+    if(!s.nav.some(function(x){return x.id===pair[0];})){
+      var meta={propmap:{label:'Property Map',icon:'\u2317',group:'Portfolio',view:'propmap'},
+                upsells:{label:'Upsells',icon:'\u2191',group:'Operations',view:'upsells'},
+                lostfound:{label:'Lost & Found',icon:'\u2691',group:'Operations',view:'lostfound'}}[pair[0]];
+      var item={id:pair[0],label:meta.label,icon:meta.icon,group:meta.group,type:'builtin',view:meta.view};
+      var i=s.nav.findIndex(function(x){return x.id===pair[1];});
+      if(i>=0)s.nav.splice(i+1,0,item);else s.nav.push(item);
+    }
+  });
+  if(!Array.isArray(s.upsells))s.upsells=[];
+  if(!Array.isArray(s.lostfound))s.lostfound=[];
+  if(!Array.isArray(s.upsellCatalog))s.upsellCatalog=[];
+  if(!s.settings||typeof s.settings!=='object')s.settings={};
+
   applyImported(s.properties,'backfill');
   ['faqs','quickReplies','guestComms','triage'].forEach(c=>(s[c]||[]).forEach(r=>{if(!r.id)r.id=uid();}));
   (s.tasks||[]).forEach(t=>{if(!t.id)t.id=uid();t.subtasks=t.subtasks||[];t.comments=t.comments||[];t.photos=t.photos||[];t.collaborators=t.collaborators||[];if(!t.owner&&t.assignee)t.owner=t.assignee;});
@@ -990,9 +981,11 @@ const COUNTS={
   tasks:()=>state.tasks.filter(t=>t.scope!=='team'&&t.status!=='Done').length,
   maintenance:()=>state.maintenance.filter(m=>m.status!=='Done'&&m.status!=='Closed').length,
   properties:()=>state.properties.length,
-  contacts:()=>state.contacts.length
+  contacts:()=>state.contacts.length,
+  upsells:()=>(state.upsells||[]).filter(upDue).length,
+  lostfound:()=>(state.lostfound||[]).filter(lfActive).length
 };
-const BUILTIN_VIEWS=["myday","dashboard","tasks","workflows","maintenance","sops","guestcomms","quickreplies","properties","cleaners","faqs","contacts","reports","activity","vault"];
+const BUILTIN_VIEWS=["myday","dashboard","tasks","workflows","maintenance","sops","guestcomms","quickreplies","properties","cleaners","propmap","upsells","lostfound","faqs","contacts","reports","activity","vault"];
 let current="myday";
 function buildNav(){
   const nav=document.getElementById('nav');nav.innerHTML='';
@@ -1020,14 +1013,313 @@ function markActive(){document.querySelectorAll('.nav a').forEach(a=>a.classList
 function filterNav(q){q=q.toLowerCase();document.querySelectorAll('.nav a').forEach(a=>{a.style.display=a.dataset.label.includes(q)?'':'none';});
   document.querySelectorAll('.navgroup .lbl').forEach(l=>l.style.display=q?'none':'');}
 
+/* ============ SHARED PIPELINE HELPERS (Upsells + Lost & Found) ============ */
+function flowToday(){return new Date().toISOString().slice(0,10);}
+function flowAddDays(d,n){if(!d)return '';const t=new Date(d+'T00:00:00');if(isNaN(t))return '';t.setDate(t.getDate()+n);return t.toISOString().slice(0,10);}
+function flowWhen(st){if(!st||!st.at)return '';const d=new Date(st.at);return d.toLocaleDateString([],{month:'short',day:'numeric'})+(st.by?' by '+st.by:'');}
+function flowNext(rec,steps){for(const s of steps){if(s.skip&&s.skip(rec))continue;const st=rec.steps&&rec.steps[s.key];if(!st||!st.done)return s;}return null;}
+function flowChips(coll,rec,steps){
+  rec.steps=rec.steps||{};
+  return steps.map(s=>{
+    if(s.skip&&s.skip(rec))return '';
+    const st=rec.steps[s.key],done=st&&st.done;
+    return '<button onclick="flowToggle(\''+coll+'\',\''+rec.id+'\',\''+s.key+'\')" title="'+(done?esc('Done '+flowWhen(st)):'Tap to mark done')+'" '+
+      'style="border:1px solid '+(done?'#1E7A9C':'var(--line,#DCE3E9)')+';background:'+(done?'#1E7A9C':'#fff')+';color:'+(done?'#fff':'var(--ink2,#47576A)')+';border-radius:14px;padding:3px 10px;font-size:12px;cursor:pointer">'+
+      (done?'\u2713 ':'')+esc(s.label)+'</button>';
+  }).join(' ');
+}
+function flowToggle(coll,id,key){
+  if(!canEdit(coll))return;
+  const r=(state[coll]||[]).find(x=>x.id===id);if(!r)return;
+  r.steps=r.steps||{};
+  const cur=r.steps[key]&&r.steps[key].done;
+  r.steps[key]={done:!cur,at:Date.now(),by:whoLabel()};
+  if(coll==='upsells')upSync(r);
+  logAct(cur?'un-marked':'marked',collLabel(coll),recLabel(r)+' \u00b7 '+key);
+  save();render(current);buildNav();
+}
+function flowMarkNext(coll,id){
+  const r=(state[coll]||[]).find(x=>x.id===id);if(!r)return;
+  const steps=coll==='upsells'?UPSELL_STEPS:LF_STEPS;
+  const nx=flowNext(r,steps);if(nx)flowToggle(coll,id,nx.key);
+}
+function flowDecline(coll,id){
+  if(!canEdit(coll))return;
+  const r=(state[coll]||[]).find(x=>x.id===id);if(!r)return;
+  guardDelete((recLabel(r)||'this record')+' — this closes it and stops reminders',()=>{
+    r.status=coll==='upsells'?'declined':'closed';r.closedAt=Date.now();
+    logAct('closed',collLabel(coll),recLabel(r));save();render(current);buildNav();
+  });
+}
+function flowReopen(coll,id){
+  const r=(state[coll]||[]).find(x=>x.id===id);if(!r)return;
+  r.status='';delete r.closedAt;save();render(current);buildNav();
+}
+/* Calendar links with a 9am alert on the given day */
+function gcalLink(title,day){
+  if(!day)return '';
+  const d=day.replace(/-/g,'');const d2=flowAddDays(day,1).replace(/-/g,'');
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(title)+'&dates='+d+'/'+(d2||d);
+}
+function icsHref(title,day){
+  if(!day)return '';
+  const d=day.replace(/-/g,''),d2=flowAddDays(day,1).replace(/-/g,'');
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//SDSTR Ops Hub//EN','BEGIN:VEVENT',
+    'UID:'+d+'-'+Math.random().toString(36).slice(2)+'@sdstr','DTSTART;VALUE=DATE:'+d,'DTEND;VALUE=DATE:'+(d2||d),
+    'SUMMARY:'+title,'BEGIN:VALARM','TRIGGER;VALUE=DATE-TIME:'+d+'T090000','ACTION:DISPLAY','DESCRIPTION:'+title,'END:VALARM',
+    'END:VEVENT','END:VCALENDAR'].join('\r\n');
+  return 'data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);
+}
+function flowFilterTabs(coll,cur,tabs){
+  return '<div class="filter" style="margin:8px 0 14px">'+tabs.map(t=>
+    '<button class="'+(cur===t.k?'on':'')+'" onclick="viewFilter[\''+coll+'\']=\''+t.k+'\';render(\''+coll+'\')">'+esc(t.label)+(t.n!=null?' ('+t.n+')':'')+'</button>').join('')+'</div>';
+}
+
+/* ============ UPSELLS (Operations) ============ */
+const UPSELL_STEPS=[
+  {key:'requested',label:'Requested'},
+  {key:'paid',label:'Paid',skip:r=>Number(r.priceEach||0)===0},
+  {key:'approved',label:'Approved'},
+  {key:'coordinated',label:'Coordinated w/ housekeeping'},
+  {key:'completed',label:'Completed'}
+];
+function upCat(){return state.upsellCatalog||[];}
+function upCatItem(name){return upCat().find(c=>c.name===name);}
+function upDateNeeded(r){
+  if(r.serviceDate)return r.serviceDate;
+  if(r.timing==='Early check-in')return r.checkin||'';
+  if(r.timing==='Late check-out')return r.checkout||'';
+  return r.checkin||r.checkout||'';
+}
+function upLead(r){const c=upCatItem(r.item);return c&&c.leadDays?Number(c.leadDays):1;}
+function upSync(r){
+  const need=upDateNeeded(r);
+  if(!r.coordinateByOverride)r.coordinateBy=need?flowAddDays(need,-upLead(r)):'';
+  const coordinated=r.steps&&r.steps.coordinated&&r.steps.coordinated.done;
+  r.activeReminder=coordinated?need:(r.coordinateBy||need);
+}
+function upActive(r){return r.status!=='declined'&&!(r.steps&&r.steps.completed&&r.steps.completed.done);}
+function upDue(r){upSync(r);return upActive(r)&&r.activeReminder&&r.activeReminder<=flowToday();}
+function upTotal(r){return (Number(r.priceEach||0)*Number(r.qty||1))||0;}
+
+function upFields(){
+  const props=[''].concat(state.properties.map(p=>p.nickname));
+  const cat=upCat().map(c=>c.name);
+  const itemField=cat.length?{key:'item',label:'Item',type:'select',options:[''].concat(cat)}
+                            :{key:'item',label:'Item (add items in Manage catalog first)'};
+  return [
+    {type:'section',label:'What & who'},
+    itemField,
+    {key:'timing',label:'Timing (early/late items only)',type:'select',options:['','Early check-in','Late check-out']},
+    {key:'guestName',label:'Guest name'},
+    {key:'property',label:'Property',type:'select',options:props},
+    {key:'resCode',label:'Reservation code'},
+    {type:'section',label:'Dates'},
+    {key:'checkin',label:'Check-in',type:'date'},
+    {key:'checkout',label:'Check-out',type:'date'},
+    {key:'serviceDate',label:'Service date (non-timing items)',type:'date'},
+    {key:'preferredTime',label:'Preferred arrival/departure time (early/late)'},
+    {type:'section',label:'Money & notes'},
+    {key:'qty',label:'Quantity',type:'number'},
+    {key:'priceEach',label:'Price each (0 = complimentary)',type:'number'},
+    {key:'guestNotes',label:'Guest notes',type:'textarea'},
+    {key:'internalNotes',label:'Internal notes',type:'textarea'},
+    {key:'coordinateByOverride',label:'Coordinate-by override (optional, sticks if set)',type:'date'}
+  ];
+}
+function addUpsell(){if(!canEdit('upsells'))return;openForm('Log upsell',upFields(),{qty:'1'},out=>{out.id=uid();out.steps={};out.status='';if(out.coordinateByOverride)out.coordinateBy=out.coordinateByOverride;upSync(out);state.upsells.unshift(out);logAct('added','Upsell',recLabel(out));});}
+function editUpsell(id){if(!canEdit('upsells'))return;const r=state.upsells.find(x=>x.id===id);openForm('Edit upsell',upFields(),r,out=>{Object.assign(r,out);if(out.coordinateByOverride)r.coordinateBy=out.coordinateByOverride;upSync(r);logAct('edited','Upsell',recLabel(r));});}
+function upCopyMsg(id){
+  const r=state.upsells.find(x=>x.id===id);if(!r)return;
+  const need=upDateNeeded(r);
+  const lines=['Upsell — '+(r.item||'item')+(r.timing?' ('+r.timing+')':''),
+    (r.property?'Property: '+r.property:''),
+    (r.guestName?'Guest: '+r.guestName:'')+(r.resCode?'  ('+r.resCode+')':''),
+    (need?'Date needed: '+need:'')+(r.preferredTime?'  '+r.preferredTime:''),
+    (Number(r.qty||1)>1?'Qty: '+r.qty:''),
+    (r.guestNotes?'Notes: '+r.guestNotes:'')].filter(Boolean);
+  copyText(lines.join('\n'));
+}
+function upCard(r){
+  upSync(r);
+  const total=upTotal(r);const paid=r.steps&&r.steps.paid&&r.steps.paid.done;
+  const comp=Number(r.priceEach||0)===0;
+  const declined=r.status==='declined';
+  const nx=flowNext(r,UPSELL_STEPS);
+  const due=upDue(r);
+  const rday=icsHref('Coordinate upsell: '+(r.item||'')+' @ '+(r.property||''),r.activeReminder);
+  return '<div class="card" style="padding:14px;'+(due?'border-left:3px solid #C9922E;':'')+(declined?'opacity:.6;':'')+'">'+
+    '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline">'+
+      '<strong>'+esc(r.item||'Upsell')+(r.timing?' \u00b7 '+esc(r.timing):'')+'</strong>'+
+      '<span class="muted" style="font-size:12px">'+(r.guestName?esc(r.guestName)+' \u00b7 ':'')+esc(r.property||'')+'</span></div>'+
+    '<div style="font-size:12px;margin:3px 0 6px" class="muted">'+
+      (upDateNeeded(r)?'Needed '+esc(upDateNeeded(r)):'')+(r.resCode?' \u00b7 '+esc(r.resCode):'')+
+      (total?' \u00b7 $'+total.toFixed(2):'')+
+      (r.activeReminder?' \u00b7 coordinate by '+esc(r.coordinateBy||r.activeReminder):'')+'</div>'+
+    '<div style="margin-bottom:8px">'+
+      (declined?'<span class="badge b-low">Declined</span>':'')+
+      (!declined&&!comp&&!paid?'<span class="badge b-high" style="margin-right:6px">Unpaid</span>':'')+
+      (comp?'<span class="badge b-low" style="margin-right:6px">Complimentary</span>':'')+
+      (due?'<span class="badge b-high">Due</span>':'')+'</div>'+
+    (declined?'':'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'+flowChips('upsells',r,UPSELL_STEPS)+'</div>')+
+    '<div class="actions">'+
+      (nx&&!declined?'<button class="btn sm" onclick="flowMarkNext(\'upsells\',\''+r.id+'\')">Mark '+esc(nx.label)+'</button>':'')+
+      '<button class="btn ghost sm" onclick="upCopyMsg(\''+r.id+'\')">Copy message</button>'+
+      (r.activeReminder?'<a class="btn ghost sm" href="'+gcalLink('Coordinate upsell: '+(r.item||''),r.activeReminder)+'" target="_blank" rel="noopener">Google Cal</a>':'')+
+      (rday?'<a class="btn ghost sm" href="'+rday+'" download="upsell.ics">.ics</a>':'')+
+      '<button class="btn ghost sm" onclick="editUpsell(\''+r.id+'\')">Edit</button>'+
+      (declined?'<button class="btn ghost sm" onclick="flowReopen(\'upsells\',\''+r.id+'\')">Reopen</button>':'<button class="mini del" onclick="flowDecline(\'upsells\',\''+r.id+'\')">Decline / cancel</button>')+
+    '</div></div>';
+}
+function vUpsells(v,arg){
+  const tab=(viewFilter.upsells)||'todo';
+  const all=state.upsells||[];
+  all.forEach(upSync);
+  let h='<div class="eyebrow">Operations</div><h1>Upsells</h1>'+
+    '<p class="sub">Track every guest add-on from request to done so nothing paid-for is missed and housekeeping gets notice.</p>';
+  h+='<div class="actions" style="margin:8px 0 6px">'+
+     '<button class="btn sm" onclick="addUpsell()">+ Log upsell</button>'+
+     '<button class="btn ghost sm" onclick="upManageCatalog()">Manage catalog</button>'+
+     '<button class="btn ghost sm" onclick="upSettings()">Settings</button></div>';
+  const active=all.filter(upActive);
+  const due=active.filter(upDue).length;
+  h+=flowFilterTabs('upsells',tab,[
+    {k:'todo',label:'To do',n:active.length},
+    {k:'all',label:'All',n:all.length},
+    {k:'unpaid',label:'Unpaid',n:all.filter(r=>upActive(r)&&Number(r.priceEach||0)>0&&!(r.steps&&r.steps.paid&&r.steps.paid.done)).length},
+    {k:'declined',label:'Declined',n:all.filter(r=>r.status==='declined').length}
+  ]);
+  if(!all.length){v.innerHTML=h+emptyState('No upsells yet','Log the first add-on, or set up your catalog first.');return;}
+  let list=all;
+  if(tab==='todo')list=active;
+  else if(tab==='unpaid')list=all.filter(r=>upActive(r)&&Number(r.priceEach||0)>0&&!(r.steps&&r.steps.paid&&r.steps.paid.done));
+  else if(tab==='declined')list=all.filter(r=>r.status==='declined');
+  if(tab==='todo'){
+    const groups=[['Overdue',r=>r.activeReminder&&r.activeReminder<flowToday()],
+      ['Today',r=>r.activeReminder===flowToday()],
+      ['This week',r=>r.activeReminder&&r.activeReminder>flowToday()&&r.activeReminder<=flowAddDays(flowToday(),7)],
+      ['Later / no date',r=>!r.activeReminder||r.activeReminder>flowAddDays(flowToday(),7)]];
+    groups.forEach(([lbl,fn])=>{const g=list.filter(fn);if(!g.length)return;
+      h+='<div class="sectitle" style="font-size:13px;margin:14px 0 8px">'+lbl+' <span class="muted">('+g.length+')</span></div>'+
+         '<div style="display:flex;flex-direction:column;gap:10px">'+g.map(upCard).join('')+'</div>';});
+  }else{
+    h+='<div style="display:flex;flex-direction:column;gap:10px">'+list.map(upCard).join('')+'</div>';
+  }
+  v.innerHTML=h;
+}
+const UP_CAT_FIELDS=[
+  {key:'name',label:'Item name'},
+  {key:'price',label:'Default price',type:'number'},
+  {key:'currency',label:'Currency',def:'USD'},
+  {key:'leadDays',label:'Lead days (housekeeping notice)',type:'number'},
+  {key:'perQty',label:'Per-quantity item?',type:'select',options:['No','Yes']},
+  {key:'timingItem',label:'Timing item (early/late)?',type:'select',options:['No','Yes']},
+  {key:'desc',label:'Guest-facing description',type:'textarea'}
+];
+function upManageCatalog(){
+  const v=document.getElementById('view');
+  let h='<div class="backlink" onclick="render(\'upsells\')">\u2190 Upsells</div><h1>Upsell catalog</h1>'+
+    '<p class="sub">Items, prices and lead times live here, not hardcoded. Price changes need approval from '+
+    esc((state.settings&&state.settings.priceApprover)||'[set approver in Settings]')+'.</p>'+
+    '<div class="actions" style="margin:8px 0 14px"><button class="btn sm" onclick="upCatAdd()">+ Add item</button></div>';
+  const cat=upCat();
+  if(!cat.length)h+=emptyState('No catalog items yet','Add your add-ons (early check-in, mid-stay clean, etc.) with prices and lead days.');
+  else h+='<div style="display:flex;flex-direction:column;gap:8px">'+cat.map(c=>
+    '<div class="card" style="padding:12px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline">'+
+    '<div><strong>'+esc(c.name)+'</strong>'+(c.desc?'<div class="muted" style="font-size:12px">'+esc(c.desc)+'</div>':'')+'</div>'+
+    '<div class="muted" style="font-size:12px">'+(c.price?(c.currency||'USD')+' '+c.price:'no price')+(c.leadDays?' \u00b7 '+c.leadDays+'d lead':'')+
+    ' <button class="mini btnedit" onclick="upCatEdit(\''+c.id+'\')">Edit</button> <button class="mini del" onclick="upCatDel(\''+c.id+'\')">\u00d7</button></div></div>').join('')+'</div>';
+  v.innerHTML=h;
+}
+function upCatAdd(){if(!canEdit('upsells'))return;openForm('Add catalog item',UP_CAT_FIELDS,{currency:'USD',perQty:'No',timingItem:'No'},out=>{out.id=uid();state.upsellCatalog.push(out);logAct('added','Catalog item',out.name);});setTimeout(()=>{},0);}
+function upCatEdit(id){if(!canEdit('upsells'))return;const c=upCat().find(x=>x.id===id);openForm('Edit catalog item',UP_CAT_FIELDS,c,out=>{Object.assign(c,out);logAct('edited','Catalog item',c.name);});}
+function upCatDel(id){if(!canEdit('upsells'))return;const c=upCat().find(x=>x.id===id);guardDelete(c?c.name:'this item',()=>{state.upsellCatalog=upCat().filter(x=>x.id!==id);logAct('deleted','Catalog item',c?c.name:'');save();render(current);});}
+function upSettings(){
+  openForm('Upsell settings',[
+    {key:'priceApprover',label:'Who approves price changes'}
+  ],(state.settings||{}),out=>{state.settings=Object.assign(state.settings||{},out);logAct('edited','Settings','Upsell settings');});
+}
+
+/* ============ LOST & FOUND (Operations) ============ */
+const LF_STEPS=[
+  {key:'logged',label:'Logged'},
+  {key:'notified',label:'Guest notified'},
+  {key:'arranged',label:'Return arranged'},
+  {key:'returned',label:'Shipped / returned'},
+  {key:'closed',label:'Closed'}
+];
+function lfActive(r){return r.status!=='closed'&&!(r.steps&&r.steps.closed&&r.steps.closed.done);}
+function lfFields(){
+  const props=[''].concat(state.properties.map(p=>p.nickname));
+  return [
+    {type:'section',label:'Item'},
+    {key:'item',label:'What was found'},
+    {key:'photo',label:'Photo (optional)',type:'photo'},
+    {key:'property',label:'Property',type:'select',options:props},
+    {key:'foundDate',label:'Date found',type:'date'},
+    {key:'foundLocation',label:'Where in the property'},
+    {type:'section',label:'Owner & storage'},
+    {key:'guestName',label:'Guest name (if known)'},
+    {key:'resCode',label:'Reservation code'},
+    {key:'storageLocation',label:'Where it is being stored'},
+    {key:'holdUntil',label:'Hold until (dispose after)',type:'date'},
+    {key:'notes',label:'Notes',type:'textarea'}
+  ];
+}
+function addLF(){if(!canEdit('lostfound'))return;openForm('Log found item',lfFields(),{foundDate:flowToday()},out=>{out.id=uid();out.steps={logged:{done:true,at:Date.now(),by:whoLabel()}};out.status='';state.lostfound.unshift(out);logAct('added','Lost & found item',recLabel(out));});}
+function editLF(id){if(!canEdit('lostfound'))return;const r=state.lostfound.find(x=>x.id===id);openForm('Edit found item',lfFields(),r,out=>{Object.assign(r,out);logAct('edited','Lost & found item',recLabel(r));});}
+function lfCopyMsg(id){
+  const r=state.lostfound.find(x=>x.id===id);if(!r)return;
+  const lines=['Hi'+(r.guestName?' '+r.guestName:'')+', we found an item after your stay'+(r.property?' at '+r.property:'')+':',
+    '- '+(r.item||'item')+(r.foundLocation?' (found in the '+r.foundLocation+')':''),
+    'Would you like us to arrange its return? Let us know the best shipping address, or if you\u2019ll collect it.'].filter(Boolean);
+  copyText(lines.join('\n'));
+}
+function lfCard(r){
+  const closed=!lfActive(r);const nx=flowNext(r,LF_STEPS);
+  const overdue=r.holdUntil&&r.holdUntil<flowToday()&&!closed;
+  return '<div class="card" style="padding:14px;'+(overdue?'border-left:3px solid #C9922E;':'')+(closed?'opacity:.6;':'')+'">'+
+    '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">'+
+    '<div style="flex:1;min-width:180px">'+
+      '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline">'+
+      '<strong>'+esc(r.item||'Item')+'</strong>'+
+      '<span class="muted" style="font-size:12px">'+esc(r.property||'')+(r.foundDate?' \u00b7 '+esc(r.foundDate):'')+'</span></div>'+
+      '<div class="muted" style="font-size:12px;margin:3px 0 6px">'+
+        (r.foundLocation?'Found: '+esc(r.foundLocation)+' \u00b7 ':'')+(r.storageLocation?'Stored: '+esc(r.storageLocation):'')+
+        (r.holdUntil?' \u00b7 hold until '+esc(r.holdUntil):'')+'</div>'+
+      (overdue?'<span class="badge b-high" style="margin-bottom:6px">Past hold date</span>':'')+
+      (closed?'<span class="badge b-low" style="margin-bottom:6px">Closed</span>':'')+
+      (closed?'':'<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px">'+flowChips('lostfound',r,LF_STEPS)+'</div>')+
+      '<div class="actions">'+
+        (nx&&!closed?'<button class="btn sm" onclick="flowMarkNext(\'lostfound\',\''+r.id+'\')">Mark '+esc(nx.label)+'</button>':'')+
+        '<button class="btn ghost sm" onclick="lfCopyMsg(\''+r.id+'\')">Copy message</button>'+
+        '<button class="btn ghost sm" onclick="editLF(\''+r.id+'\')">Edit</button>'+
+        (closed?'<button class="btn ghost sm" onclick="flowReopen(\'lostfound\',\''+r.id+'\')">Reopen</button>':'<button class="mini del" onclick="flowDecline(\'lostfound\',\''+r.id+'\')">Close / dispose</button>')+
+      '</div>'+
+    '</div>'+
+    (r.photo&&imgSrc(r.photo)?'<img src="'+imgSrc(r.photo)+'" onclick="lightbox(this.src)" style="width:88px;height:88px;object-fit:cover;border-radius:8px;cursor:pointer">':'')+
+    '</div></div>';
+}
+function vLostFound(v,arg){
+  const tab=(viewFilter.lostfound)||'open';
+  const all=state.lostfound||[];
+  let h='<div class="eyebrow">Operations</div><h1>Lost &amp; Found</h1>'+
+    '<p class="sub">Log items guests leave behind and track them from found to returned.</p>'+
+    '<div class="actions" style="margin:8px 0 6px"><button class="btn sm" onclick="addLF()">+ Log found item</button></div>';
+  h+=flowFilterTabs('lostfound',tab,[
+    {k:'open',label:'Open',n:all.filter(lfActive).length},
+    {k:'all',label:'All',n:all.length},
+    {k:'closed',label:'Closed',n:all.filter(r=>!lfActive(r)).length}
+  ]);
+  if(!all.length){v.innerHTML=h+emptyState('Nothing logged yet','Log the first found item when it turns up.');return;}
+  let list=all;if(tab==='open')list=all.filter(lfActive);else if(tab==='closed')list=all.filter(r=>!lfActive(r));
+  h+='<div style="display:flex;flex-direction:column;gap:10px">'+list.map(lfCard).join('')+'</div>';
+  v.innerHTML=h;
+}
+
 window.addEventListener('hashchange',route);
 function firstSectionId(){const v=state.nav.filter(s=>!s.hidden);return v.length?v[0].id:'myday';}
-/* Mobile nav drawer */
-function toggleNav(){document.getElementById('app').classList.toggle('navopen');}
-function openNav(){document.getElementById('app').classList.add('navopen');}
-function closeNav(){document.getElementById('app').classList.remove('navopen');}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNav();});
-function route(){let h=(location.hash||'').slice(1);if(!h)h=firstSectionId();const [id,arg]=h.split('/');current=id;markActive();render(id,arg);closeNav();const vw=document.getElementById('view');if(vw)vw.scrollTop=0;window.scrollTo(0,0);}
+function route(){let h=(location.hash||'').slice(1);if(!h)h=firstSectionId();const [id,arg]=h.split('/');current=id;markActive();render(id,arg);const vw=document.getElementById('view');if(vw)vw.scrollTop=0;window.scrollTo(0,0);}
 
 /* ============ HELPERS ============ */
 function el(html){const d=document.createElement('div');d.innerHTML=html.trim();return d.firstElementChild;}
@@ -1177,8 +1469,8 @@ function logAct(action,entity,detail,undo){
   state.activity.unshift({id:uid(),ts:Date.now(),user:(currentUser?whoLabel():'marlon'),action:action,entity:entity,detail:detail||'',undo:undo||null});
   if(state.activity.length>500)state.activity.length=500;
 }
-function collLabel(coll){return ({quickReplies:'Quick reply',guestComms:'Template',triage:'Triage protocol',contacts:'Contact',cleaners:'Cleaner',faqs:'FAQ',tasks:'Task',maintenance:'Maintenance',vault:'Credential',properties:'Property'}[coll]||coll);}
-function recLabel(r){return (r&&(r.title||r.name||r.nickname||r.q||r.service||r.property||r.issue||r.label))||'';}
+function collLabel(coll){return ({quickReplies:'Quick reply',guestComms:'Template',triage:'Triage protocol',contacts:'Contact',cleaners:'Cleaner',faqs:'FAQ',tasks:'Task',maintenance:'Maintenance',vault:'Credential',properties:'Property',upsells:'Upsell',lostfound:'Lost & found item',upsellCatalog:'Catalog item'}[coll]||coll);}
+function recLabel(r){return (r&&(r.title||r.name||r.nickname||r.q||r.service||r.item||r.property||r.issue||r.label))||'';}
 function fmtTs(ts){const d=new Date(ts);return d.toLocaleDateString([],{month:'short',day:'numeric'})+', '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
 function actBadge(a){return '<span class="badge act-'+a+'">'+esc(a)+'</span>';}
 function undoAct(id){
@@ -1224,7 +1516,7 @@ function render(id,arg){
   v.classList.toggle('protectedview',sectionProtected(id));
   const R={myday:vMyDay,dashboard:vDashboard,tasks:vTasks,workflows:vWorkflows,maintenance:vMaintenance,
     sops:vSOPs,guestcomms:vGuestComms,quickreplies:vQuickReplies,properties:vProperties,
-    cleaners:vCleaners,faqs:vFAQs,contacts:vContacts,reports:vReports,activity:vActivity,vault:vVault};
+    cleaners:vCleaners,propmap:vPropMap,upsells:vUpsells,lostfound:vLostFound,faqs:vFAQs,contacts:vContacts,reports:vReports,activity:vActivity,vault:vVault};
   v.innerHTML='';
   const section=state.nav.find(s=>s.id===id);
   if(section&&section.type==='custom'){vCustomPage(v,section);return;}
@@ -1734,7 +2026,11 @@ const PROP_SECTIONS=[
    {key:"ownerCommsPref",label:"Owner comms preference",guesty:"{{owner_comms_pref}}"},
    {key:"notes",label:"Other ops notes",type:"textarea"}]},
  {n:"10",title:"House layout",fields:[
-   {key:"houseLayout",label:"Room-by-room layout",type:"textarea"}]}
+   {key:"houseLayout",label:"Room-by-room layout",type:"textarea"}]},
+ {n:"11",title:"Map & distance",fields:[
+   {key:"lat",label:"Latitude (for map)"},
+   {key:"lng",label:"Longitude (for map)"},
+   {key:"distanceToBeach",label:"Distance to beach"}]}
 ];
 function propValue(p,key){
   if(key==='bedsBaths')return p.bedsBaths||[p.beds?p.beds+'BR':'',p.baths?p.baths+'BA':''].filter(Boolean).join(' / ');
@@ -1999,6 +2295,223 @@ function delPropIcon(id,i){if(!canEdit('properties'))return;const p=state.proper
 function chip(l,val){return '<span class="tag" style="cursor:pointer" onclick="copyText('+JSON.stringify(val).replace(/"/g,'&quot;')+')">'+esc(l)+': <span class="code" style="cursor:pointer">'+esc(val)+'</span></span>';}
 function kv(k,val){return '<dt>'+esc(k)+'</dt><dd>'+esc(val||'—')+'</dd>';}
 function editProp(id){if(!canEdit('properties'))return;const p=state.properties.find(x=>x.id===id);openForm('Edit property — '+p.nickname,propFormFields(),p,out=>{Object.assign(p,out);logAct('edited','Property',p.nickname);});}
+/* ============ PROPERTY MAP (Portfolio) ============ */
+/* Real slippy map (Leaflet + Esri tiles). Pins are geocoded from each property's
+   existing address via OpenStreetMap (Nominatim), cached in this browser, and can be
+   dragged to correct. Nothing is invented: a property with no address is listed, not guessed. */
+const PM={sel:'',building:'',q:'',map:null,cluster:null,markers:{},booted:false,geocoding:false};
+const PM_PALETTE=['#2f5d3a','#2b6b8f','#8a5a2b','#6b4fa1','#b0392e','#2b8f7a','#8f2b6b','#5a6b2b'];
+
+function pmGeoLoad(){try{return JSON.parse(localStorage.getItem('sdstr_mapgeo')||'{}')||{};}catch(e){return {};}}
+function pmGeoSave(o){try{localStorage.setItem('sdstr_mapgeo',JSON.stringify(o));}catch(e){}}
+function pmNormAddr(p){let a=(p.address||'').trim();if(!a)return '';if(a.indexOf(',')<0&&!/\d/.test(a))return '';return a;}
+function pmHasAddress(p){return !!pmNormAddr(p);}
+function pmMapPins(){state.mapPins=state.mapPins||{};return state.mapPins;}
+
+/* resolve a property to coordinates: manual drag > typed lat/lng > geocode cache */
+function pmResolve(p){
+  const mp=pmMapPins()[p.id];
+  if(mp&&isFinite(mp.lat)&&isFinite(mp.lng))return {lat:+mp.lat,lng:+mp.lng,manual:!!mp.manual};
+  const la=parseFloat(p.lat),lo=parseFloat(p.lng);
+  if(isFinite(la)&&isFinite(lo)&&(la||lo))return {lat:la,lng:lo,manual:false};
+  const g=pmGeoLoad()[pmNormAddr(p)];
+  if(g&&isFinite(g.lat)&&isFinite(g.lng))return {lat:g.lat,lng:g.lng,manual:false};
+  return null;
+}
+function pmHaversineM(a,b){const R=6371000,t=x=>x*Math.PI/180;const dLa=t(b.lat-a.lat),dLo=t(b.lng-a.lng);
+  const s=Math.sin(dLa/2)**2+Math.cos(t(a.lat))*Math.cos(t(b.lat))*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(s));}
+function pmFmtDist(m){const ft=m*3.28084,mi=m/1609.344;return mi<0.25?Math.round(ft/10)*10+' ft':mi.toFixed(mi<10?1:0)+' mi';}
+
+/* rooms/beds summary from bedsBaths / houseLayout */
+function pmRooms(p){
+  const bb=(propValue(p,'bedsBaths')||'').trim();
+  const brm=bb.match(/(\d+)\s*(?:BR|Bed)/i);
+  if(brm)return brm[1]+' BR';
+  const beds=(p.houseLayout||'').split(/;|\n/).filter(s=>/bedroom/i.test(s)).length;
+  return beds?beds+' BR':(bb||'—');
+}
+
+/* group properties that share a base street address into "buildings" */
+function pmBaseAddr(p){
+  let a=(p.address||'').toLowerCase();
+  a=a.split(',')[0]; // street line
+  a=a.replace(/\b(unit|apt|apartment|suite|ste|#|no\.?)\s*[a-z0-9\-]+/g,'');
+  a=a.replace(/\b[a-z]\b/g,'').replace(/\s+/g,' ').trim();
+  return a;
+}
+function pmBuildingGroups(){
+  const byBase={};
+  (state.properties||[]).forEach(p=>{const b=pmBaseAddr(p);if(!b)return;(byBase[b]=byBase[b]||[]).push(p);});
+  const groups=Object.keys(byBase).filter(b=>byBase[b].length>1).map(b=>{
+    const units=byBase[b];
+    // building name: longest common nickname prefix, else the street address
+    const addr=(units[0].address||'').split(',').slice(0,1).join('');
+    let name=addr||b;
+    return {key:b,name:name.trim(),addr:units[0].address||'',units:units};
+  });
+  groups.sort((a,b)=>b.units.length-a.units.length);
+  return groups;
+}
+function pmBuildingOf(p,groups){const b=pmBaseAddr(p);return groups.findIndex(g=>g.key===b);}
+function pmColor(p,groups){const i=pmBuildingOf(p,groups);return i>=0?PM_PALETTE[i%PM_PALETTE.length]:'#7c8a97';}
+
+function pmStats(){
+  const props=state.properties||[];const mp=pmMapPins();
+  let pinned=0,manual=0,need=0;
+  props.forEach(p=>{if(pmResolve(p))pinned++;if(mp[p.id]&&mp[p.id].manual)manual++;if(!pmHasAddress(p))need++;});
+  return {total:props.length,pinned:pinned,manual:manual,need:need};
+}
+function pmRemainingCount(){return (state.properties||[]).filter(p=>pmHasAddress(p)&&!pmResolve(p)).length;}
+
+function pmClosest(selId){
+  const sel=(state.properties||[]).find(p=>p.id===selId);if(!sel)return [];
+  const a=pmResolve(sel);if(!a)return [];
+  const out=[];
+  (state.properties||[]).forEach(p=>{if(p.id===selId)return;const c=pmResolve(p);if(!c)return;
+    out.push({p:p,m:pmHaversineM(a,c)});});
+  out.sort((x,y)=>x.m-y.m);
+  return out;
+}
+
+/* ---- view ---- */
+function vPropMap(v,arg){
+  const st=pmStats();const groups=pmBuildingGroups();
+  const props=(state.properties||[]).slice().sort((a,b)=>(a.nickname||'').localeCompare(b.nickname||''));
+  const bopts=['<option value="">All buildings</option>'].concat(groups.map(g=>'<option value="'+esc(g.key)+'"'+(PM.building===g.key?' selected':'')+'>'+esc(g.name)+' ('+g.units.length+')</option>')).concat(['<option value="__standalone"'+(PM.building==='__standalone'?' selected':'')+'>Standalone</option>']).join('');
+  const findOpts=['<option value="">Find closest to\u2026</option>'].concat(props.filter(p=>pmResolve(p)).map(p=>'<option value="'+p.id+'"'+(PM.sel===p.id?' selected':'')+'>'+esc(p.nickname)+'</option>')).join('');
+  let h='<div class="eyebrow">Portfolio</div><h1>Property map</h1>'+
+    '<p class="sub">Pins are geocoded from the address already on each property record (via OpenStreetMap), cached in this browser, and can be dragged to correct one. Nothing is invented here: a property with no address yet is listed instead of being guessed at.</p>';
+  h+='<div class="kv" style="grid-template-columns:repeat(4,1fr);gap:12px;margin:10px 0 14px">'+
+     pmStat('Properties',st.total)+pmStat('Pinned',st.pinned)+pmStat('Manually adjusted',st.manual)+pmStat('Needs an address',st.need)+'</div>';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'+
+     '<select onchange="pmSelect(this.value)" style="min-width:200px">'+findOpts+'</select>'+
+     (PM.sel?'<button class="btn ghost sm" onclick="pmClearSel()">Clear</button>':'')+
+     '<select onchange="pmSetBuilding(this.value)">'+bopts+'</select>'+
+     '<input type="text" placeholder="Search pins" value="'+esc(PM.q)+'" oninput="pmSearch(this.value)" style="flex:1;min-width:150px">'+
+     '<button class="btn sm" style="margin-left:auto" onclick="pmGeocodeRemaining()" id="pm-geobtn">Pin remaining ('+pmRemainingCount()+')</button></div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 320px;gap:14px;align-items:start">'+
+     '<div id="pm-map" style="height:600px;border:1px solid var(--line,#DCE3E9);border-radius:10px;background:#eef3f6"></div>'+
+     '<div id="pm-panel">'+pmPanelHTML()+'</div></div>';
+  v.innerHTML=h;
+  pmEnsureLeaflet();
+}
+function pmStat(label,n){return '<div class="stat"><div class="l" style="text-transform:uppercase;font-size:10px;letter-spacing:.14em;color:#5f7d97">'+esc(label)+'</div><div class="n" style="font-size:30px;font-weight:700">'+n+'</div></div>';}
+
+function pmPanelHTML(){
+  if(PM.sel){
+    const sel=(state.properties||[]).find(p=>p.id===PM.sel);
+    const list=pmClosest(PM.sel).slice(0,14);
+    let h='<div class="card" style="padding:14px"><div class="muted" style="font-size:10px;letter-spacing:.14em;text-transform:uppercase">Closest to</div>'+
+      '<strong style="font-size:15px">'+esc(sel?sel.nickname:'')+'</strong>'+
+      '<div style="display:flex;flex-direction:column;gap:2px;margin-top:10px">';
+    if(!list.length)h+='<span class="muted" style="font-size:13px">No other pinned properties yet.</span>';
+    list.forEach(r=>{h+='<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--line,#eef2f5);cursor:pointer" onclick="pmSelect(\''+r.p.id+'\')">'+
+      '<div style="min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(r.p.nickname)+'</div>'+
+      '<div class="muted" style="font-size:11px">'+esc(pmRooms(r.p))+(r.p.address?' \u00b7 '+esc((r.p.address.split(',')[1]||'').trim()||r.p.address.split(',')[0]):'')+'</div></div>'+
+      '<span class="badge b-low" style="white-space:nowrap">'+pmFmtDist(r.m)+'</span></div>';});
+    h+='</div></div>';
+    return h;
+  }
+  const groups=pmBuildingGroups();
+  let h='<div class="card" style="padding:14px;margin-bottom:12px"><div class="muted" style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px">Legend</div>';
+  groups.forEach((g,i)=>{h+='<div style="display:flex;align-items:center;gap:8px;font-size:13px;margin:3px 0"><span style="width:11px;height:11px;border-radius:50%;background:'+PM_PALETTE[i%PM_PALETTE.length]+';display:inline-block"></span>'+esc(g.name)+'</div>';});
+  h+='<div style="display:flex;align-items:center;gap:8px;font-size:13px;margin:3px 0"><span style="width:11px;height:11px;border-radius:50%;background:#7c8a97;display:inline-block"></span>Standalone</div></div>';
+  if(groups.length){h+='<div class="card" style="padding:14px;margin-bottom:12px"><div class="muted" style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px">Buildings</div>';
+    groups.forEach(g=>{h+='<div style="margin:8px 0"><strong style="font-size:13px">'+esc(g.name)+'</strong><div class="muted" style="font-size:11px">'+g.units.length+' units'+(g.addr?' \u00b7 '+esc(g.addr):'')+'</div></div>';});
+    h+='</div>';}
+  const need=(state.properties||[]).filter(p=>!pmHasAddress(p));
+  if(need.length){h+='<div class="card" style="padding:14px"><div class="muted" style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px">Needs an address ('+need.length+')</div>';
+    need.forEach(p=>{h+='<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:5px 0"><span style="font-size:13px">'+esc(p.nickname)+'</span><button class="btn ghost sm" onclick="pmAddAddress(\''+p.id+'\')">Add address</button></div>';});
+    h+='</div>';}
+  return h;
+}
+
+/* ---- Leaflet bootstrap (browser only; guarded so headless render never throws) ---- */
+function pmEnsureLeaflet(){
+  if(typeof window==='undefined')return;
+  if(window.L){pmBoot();return;}
+  if(document.getElementById('pm-leaflet-js')){return;} // loading; onload will boot
+  const css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(css);
+  const css2=document.createElement('link');css2.rel='stylesheet';css2.href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css';document.head.appendChild(css2);
+  const js=document.createElement('script');js.id='pm-leaflet-js';js.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  js.onload=function(){const jc=document.createElement('script');jc.src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js';jc.onload=pmBoot;jc.onerror=pmBoot;document.head.appendChild(jc);};
+  js.onerror=function(){const m=document.getElementById('pm-map');if(m)m.innerHTML='<div style="padding:24px" class="muted">Map needs an internet connection to load. The property list and distances on the right still work.</div>';};
+  document.head.appendChild(js);
+}
+function pmBoot(){
+  if(!window.L)return;
+  const el=document.getElementById('pm-map');if(!el)return;
+  if(PM.map){try{PM.map.remove();}catch(e){}PM.map=null;}
+  const map=L.map(el,{scrollWheelZoom:true}).setView([33.05,-117.28],10);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    {attribution:'Tiles \u00a9 Esri',maxZoom:19}).addTo(map);
+  PM.map=map;
+  PM.cluster=L.markerClusterGroup?L.markerClusterGroup():L.layerGroup();
+  map.addLayer(PM.cluster);
+  pmDrawMarkers();
+}
+function pmDrawMarkers(){
+  if(!PM.map||!window.L)return;
+  const groups=pmBuildingGroups();
+  PM.cluster.clearLayers();PM.markers={};
+  const q=(PM.q||'').toLowerCase();
+  const pts=[];
+  (state.properties||[]).forEach(p=>{
+    if(PM.building){const b=pmBaseAddr(p);const inGroup=groups.some(g=>g.key===b);
+      if(PM.building==='__standalone'&&inGroup)return;
+      if(PM.building!=='__standalone'&&b!==PM.building)return;}
+    if(q&&(p.nickname||'').toLowerCase().indexOf(q)<0)return;
+    const c=pmResolve(p);if(!c)return;
+    const color=pmColor(p,groups);
+    const icon=L.divIcon({className:'pm-dot',html:'<span style="display:block;width:16px;height:16px;border-radius:50%;background:'+color+';border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></span>',iconSize:[16,16],iconAnchor:[8,8]});
+    const mk=L.marker([c.lat,c.lng],{icon:icon,draggable:true,title:p.nickname});
+    mk.bindPopup('<strong>'+esc(p.nickname)+'</strong><br>'+esc(pmRooms(p))+(p.address?'<br>'+esc(p.address):'')+
+      '<br><a href="#" onclick="pmSelect(\''+p.id+'\');return false">Show closest</a>'+(c.manual?'<br><small>manually placed</small>':''));
+    mk.on('click',()=>{PM.sel=p.id;});
+    mk.on('dragend',function(e){const ll=e.target.getLatLng();pmDragSave(p.id,ll.lat,ll.lng);});
+    PM.cluster.addLayer(mk);PM.markers[p.id]=mk;pts.push([c.lat,c.lng]);
+  });
+  if(pts.length){try{PM.map.fitBounds(pts,{padding:[30,30],maxZoom:13});}catch(e){}}
+}
+function pmDragSave(id,lat,lng){
+  const mp=pmMapPins();mp[id]={lat:lat,lng:lng,manual:true};
+  logAct('adjusted','Property',(state.properties.find(p=>p.id===id)||{}).nickname+' map pin');save();
+  toast('Pin position saved');
+  // keep the map where it is; just refresh the side panel + remaining count
+  const panel=document.getElementById('pm-panel');if(panel)panel.innerHTML=pmPanelHTML();
+  const btn=document.getElementById('pm-geobtn');if(btn&&!PM.geocoding)btn.textContent='Pin remaining ('+pmRemainingCount()+')';
+}
+function pmSelect(id){PM.sel=id;const p=document.getElementById('pm-panel');if(p)p.innerHTML=pmPanelHTML();
+  const c=id&&pmResolve((state.properties||[]).find(x=>x.id===id)||{});if(PM.map&&c){PM.map.setView([c.lat,c.lng],13);const mk=PM.markers[id];if(mk&&mk.openPopup)mk.openPopup();}}
+function pmClearSel(){PM.sel='';const p=document.getElementById('pm-panel');if(p)p.innerHTML=pmPanelHTML();}
+function pmSetBuilding(val){PM.building=val;pmDrawMarkers();}
+function pmSearch(val){PM.q=val;pmDrawMarkers();}
+function pmAddAddress(id){location.hash='properties/'+id;setTimeout(()=>{if(typeof editProp==='function')editProp(id);},60);}
+
+/* ---- geocoding (OpenStreetMap / Nominatim), throttled + cached ---- */
+function pmSleep(ms){return new Promise(r=>setTimeout(r,ms));}
+async function pmGeocodeRemaining(){
+  if(PM.geocoding)return;PM.geocoding=true;
+  const btn=document.getElementById('pm-geobtn');
+  const cache=pmGeoLoad();
+  const todo=(state.properties||[]).filter(p=>pmHasAddress(p)&&!pmResolve(p));
+  let done=0;
+  for(const p of todo){
+    if(btn)btn.textContent='Geocoding\u2026 '+done+'/'+todo.length;
+    const q=pmNormAddr(p);
+    try{
+      const res=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q),{headers:{'Accept':'application/json'}});
+      const j=await res.json();
+      if(j&&j[0]){cache[q]={lat:parseFloat(j[0].lat),lng:parseFloat(j[0].lon)};pmGeoSave(cache);}
+    }catch(e){}
+    done++;
+    await pmSleep(1100); // Nominatim politeness: <=1 req/sec
+  }
+  PM.geocoding=false;
+  render('propmap');
+}
+
+
 function addPropFaq(id){if(!canEdit('faqs'))return;const p=state.properties.find(x=>x.id===id);openForm('Add FAQ for '+p.nickname,FAQ_FIELDS,{scope:[id]},out=>{out.id=uid();state.faqs.unshift(out);logAct('added','FAQ',p.nickname+': '+(out.q||''));render('properties',id);});}
 function delPropFaq(id,i){if(!canEdit('faqs'))return;const p=state.properties.find(x=>x.id===id);const rec=p.faqs[i];guardDelete('this FAQ',()=>{p.faqs.splice(i,1);logAct('deleted','FAQ',p.nickname+': '+((rec&&rec.q)||''),{type:'faq',propId:id,record:rec,index:i});render('properties',id);});}
 
