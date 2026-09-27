@@ -381,6 +381,39 @@ select:focus,input:focus,textarea:focus{outline:none;border-color:var(--teal);bo
 .bk-file .fn small{color:var(--ink3);font-size:11px}
 .bk-file a.dl{background:var(--navy);color:#fff;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:600}
 .bk-file a.dl:hover{background:var(--navy3)}
+/* ===== PROPERTY MAP popup ===== */
+.pm-specs{display:flex;justify-content:space-between;gap:6px;margin-top:auto;padding-top:8px;border-top:1px solid var(--line2);color:var(--ink)}
+.pm-spec{display:inline-flex;align-items:center;gap:6px;font-size:12.5px}
+.pm-spec svg{color:var(--ink2)}
+.pm-spec b{font-weight:600}
+.pm-specs.big{justify-content:flex-start;gap:18px;border-top:none;padding-top:6px;margin-top:6px}
+.pm-specs.big .pm-spec{font-size:13.5px}
+.pm-popup .leaflet-popup-content-wrapper{padding:0;border-radius:14px;overflow:hidden}
+.pm-popup .leaflet-popup-content{margin:0;width:300px!important;font-family:var(--sans)}
+.pm-popup a.leaflet-popup-close-button{color:#fff;background:rgba(0,0,0,.35);border-radius:50%;width:22px;height:22px;line-height:21px;top:8px;right:8px;z-index:3;font-size:16px}
+.pm-pop-img{position:relative;height:135px;background:#e6edf2;border-bottom:4px solid var(--c)}
+.pm-pop-img img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+.pm-pop-img .ph{position:absolute;inset:0;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;color:#9fb2c2}
+.pm-pop-img .ph svg{width:36px;height:36px}
+.pm-pop-img .nav{position:absolute;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;border:none;background:rgba(255,255,255,.9);color:var(--ink);font-size:18px;line-height:1;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.pm-pop-img .nav.l{left:8px}.pm-pop-img .nav.r{right:8px}
+.pm-pop-img .ct{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.55);color:#fff;font-size:10.5px;border-radius:10px;padding:1px 7px}
+.pm-pop-b{padding:11px 14px 13px}
+.pm-pop-b .t{font-weight:700;font-size:15px;line-height:1.3;color:var(--ink)}
+.pm-pop-b .c{font-size:12px;color:#a0582b;margin-top:2px}
+.pm-pop-b .f{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}
+.pm-pop-b .f .feicon{font-size:10.5px}
+.pm-pop-b .ad{display:flex;gap:5px;align-items:flex-start;font-size:12px;color:var(--ink2);margin-top:8px;cursor:copy}
+.pm-pop-b .ad svg{flex-shrink:0;margin-top:1px}
+.pm-pop-b .io{font-size:12px;color:var(--ink2);margin-top:4px}
+.pm-pop-b .io a{cursor:pointer}
+.pm-pop-b .acts{display:flex;flex-wrap:nowrap;gap:6px;margin-top:10px}
+.pm-pop-b .acts .btn{white-space:nowrap}
+.pm-pop-b .acts a.btn{color:var(--navy2);text-decoration:none}
+.pm-pop-b .acts .btn:not(.ghost){color:#fff}
+.pm-pop-b .lk{display:flex;gap:10px;margin-top:8px;font-size:12px}
+.pm-pop-b .mn{font-size:11px;color:var(--ink3);margin-top:6px}
+.pm-mini{display:flex;flex-wrap:wrap;align-items:center;gap:3px 10px;margin-top:2px}.pm-mini span{display:inline-flex;align-items:center;gap:3px}.pm-mini svg{width:12px;height:12px}.pm-mini .c{margin-left:2px}
 </style>
 </head>
 <body>
@@ -2187,6 +2220,7 @@ function vPropDetail(v,id){
   h+='<div class="actions"><button class="btn sm" onclick="editProp(\''+p.id+'\')">Edit property</button>'+
      '<button class="btn ghost sm" onclick="addPropPhoto(\''+p.id+'\')">+ Photo</button>'+
      '<button class="btn ghost sm" onclick="addPropFaq(\''+p.id+'\')">+ FAQ</button>'+
+     '<button class="btn ghost sm" onclick="location.hash=\'propmap/'+p.id+'\'">View on map</button>'+
      '<span class="spacer"></span>'+
      '<label style="font-size:12px;color:var(--ink2);display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" '+(propHideEmpty?'checked':'')+' onchange="propHideEmpty=this.checked;render(\'properties\',\''+p.id+'\')" style="width:auto"> Hide empty fields</label></div>';
   // quick codes
@@ -2311,8 +2345,53 @@ function editProp(id){if(!canEdit('properties'))return;const p=state.properties.
 /* Real slippy map (Leaflet + Esri tiles). Pins are geocoded from each property's
    existing address via OpenStreetMap (Nominatim), cached in this browser, and can be
    dragged to correct. Nothing is invented: a property with no address is listed, not guessed. */
-const PM={sel:'',building:'',q:'',map:null,cluster:null,markers:{},booted:false,geocoding:false};
+const PM={sel:'',building:'',q:'',map:null,cluster:null,markers:{},booted:false,geocoding:false,photo:{}};
+function pmProp(id){return (state.properties||[]).find(p=>p.id===id);}
 const PM_PALETTE=['#2f5d3a','#2b6b8f','#8a5a2b','#6b4fa1','#b0392e','#2b8f7a','#8f2b6b','#5a6b2b'];
+
+/* icons: guests / bedrooms / bathrooms (same trio as the public search page) + house pin */
+const PMI_GUESTS='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><circle cx="17.5" cy="9" r="2.2"/><path d="M16 14.2c3 0 4.5 2 4.5 4.8"/></svg>';
+const PMI_BED='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5v14M3 14h18v5M21 14v-2.5A3.5 3.5 0 0 0 17.5 8H11v6"/><circle cx="7" cy="10.5" r="2"/></svg>';
+const PMI_BATH='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12h17v2.5a4.5 4.5 0 0 1-4.5 4.5H8a4.5 4.5 0 0 1-4.5-4.5z"/><path d="M6 12V6a2.5 2.5 0 0 1 4.6-1.3"/><path d="M9.5 6.5h2.5M7 19l-1 2M17 19l1 2"/></svg>';
+const PMI_HOUSE='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 21V9.5L12 3.5l7.5 6V21z"/><path d="M9.5 21v-6h5v6"/></svg>';
+const PMI_PIN='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>';
+
+/* ---- specs: guests / bedrooms / bathrooms parsed from the existing fields ---- */
+function pmNum(s,re){const m=String(s||'').match(re);return m?parseFloat(m[1]):null;}
+function pmBeds(p){
+  const bb=propValue(p,'bedsBaths')||'';
+  let n=pmNum(bb,/(\d+(?:\.\d+)?)\s*(?:BR|Bed|Bd)/i);
+  if(n==null&&/studio/i.test(bb))n=0;
+  if(n==null&&p.beds&&isFinite(parseFloat(p.beds)))n=parseFloat(p.beds);
+  if(n==null){const c=(p.houseLayout||'').split(/;|\n/).filter(s=>/bedroom/i.test(s)).length;if(c)n=c;}
+  return n;
+}
+function pmBaths(p){
+  const bb=propValue(p,'bedsBaths')||'';
+  let n=pmNum(bb,/(\d+(?:\.\d+)?)\s*(?:BA|Bath)/i);
+  if(n==null&&p.baths&&isFinite(parseFloat(p.baths)))n=parseFloat(p.baths);
+  return n;
+}
+function pmGuests(p){return pmNum(p.occupancy,/(\d+)/);}
+function pmSpecs(p,big){
+  const g=pmGuests(p),b=pmBeds(p),ba=pmBaths(p);
+  const cell=(ic,val,t)=>'<span class="pm-spec" title="'+t+'">'+ic+'<b>'+val+'</b></span>';
+  return '<div class="pm-specs'+(big?' big':'')+'">'+
+    cell(PMI_GUESTS,g==null?'—':g,'Sleeps')+
+    cell(PMI_BED,b==null?'—':(b===0?'Studio':b),'Bedrooms')+
+    cell(PMI_BATH,ba==null?'—':ba,'Bathrooms')+'</div>';
+}
+function pmCity(p){
+  const c=propCity(p);if(c)return c;
+  const segs=(p.address||'').split(',').slice(1).map(s=>s.trim());
+  for(const s of segs){if(/\bCA\b/.test(s)){const x=s.replace(/\bCA\b.*$/,'').trim();if(x)return x;}}
+  const m=(p.address||'').match(/([A-Za-z]+)\s+CA\s+\d{5}/);return m?m[1]:'';
+}
+function pmPhotos(p){return (p.photos||[]).map(ph=>imgSrc(photoRef(ph))).filter(Boolean);}
+function pmListingLinks(p){
+  const out=[];String(p.listingUrls||'').split('|').forEach(seg=>{const m=seg.match(/^\s*([^:]+?):\s*(https?:\/\/\S+)/);if(m)out.push({label:m[1].trim(),url:m[2].trim()});});
+  return out;
+}
 
 function pmGeoLoad(){try{return JSON.parse(localStorage.getItem('sdstr_mapgeo')||'{}')||{};}catch(e){return {};}}
 function pmGeoSave(o){try{localStorage.setItem('sdstr_mapgeo',JSON.stringify(o));}catch(e){}}
@@ -2335,13 +2414,7 @@ function pmHaversineM(a,b){const R=6371000,t=x=>x*Math.PI/180;const dLa=t(b.lat-
 function pmFmtDist(m){const ft=m*3.28084,mi=m/1609.344;return mi<0.25?Math.round(ft/10)*10+' ft':mi.toFixed(mi<10?1:0)+' mi';}
 
 /* rooms/beds summary from bedsBaths / houseLayout */
-function pmRooms(p){
-  const bb=(propValue(p,'bedsBaths')||'').trim();
-  const brm=bb.match(/(\d+)\s*(?:BR|Bed)/i);
-  if(brm)return brm[1]+' BR';
-  const beds=(p.houseLayout||'').split(/;|\n/).filter(s=>/bedroom/i.test(s)).length;
-  return beds?beds+' BR':(bb||'—');
-}
+function pmRooms(p){const b=pmBeds(p);if(b!=null)return b===0?'Studio':b+' BR';return (propValue(p,'bedsBaths')||'').trim()||'\u2014';}
 
 /* group properties that share a base street address into "buildings" */
 function pmBaseAddr(p){
@@ -2387,6 +2460,7 @@ function pmClosest(selId){
 
 /* ---- view ---- */
 function vPropMap(v,arg){
+  if(arg&&(state.properties||[]).some(p=>p.id===arg))PM.sel=arg;
   const st=pmStats();const groups=pmBuildingGroups();
   const props=(state.properties||[]).slice().sort((a,b)=>(a.nickname||'').localeCompare(b.nickname||''));
   const bopts=['<option value="">All buildings</option>'].concat(groups.map(g=>'<option value="'+esc(g.key)+'"'+(PM.building===g.key?' selected':'')+'>'+esc(g.name)+' ('+g.units.length+')</option>')).concat(['<option value="__standalone"'+(PM.building==='__standalone'?' selected':'')+'>Standalone</option>']).join('');
@@ -2407,6 +2481,7 @@ function vPropMap(v,arg){
   v.innerHTML=h;
   pmEnsureLeaflet();
 }
+function pmMini(p){const g=pmGuests(p),b=pmBeds(p),ba=pmBaths(p);return '<span title="Sleeps">'+PMI_GUESTS+(g==null?'\u2014':g)+'</span><span title="Bedrooms">'+PMI_BED+(b==null?'\u2014':(b===0?'Studio':b))+'</span><span title="Bathrooms">'+PMI_BATH+(ba==null?'\u2014':ba)+'</span>';}
 function pmStat(label,n){return '<div class="stat"><div class="l" style="text-transform:uppercase;font-size:10px;letter-spacing:.14em;color:#5f7d97">'+esc(label)+'</div><div class="n" style="font-size:30px;font-weight:700">'+n+'</div></div>';}
 
 function pmPanelHTML(){
@@ -2419,7 +2494,7 @@ function pmPanelHTML(){
     if(!list.length)h+='<span class="muted" style="font-size:13px">No other pinned properties yet.</span>';
     list.forEach(r=>{h+='<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--line,#eef2f5);cursor:pointer" onclick="pmSelect(\''+r.p.id+'\')">'+
       '<div style="min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(r.p.nickname)+'</div>'+
-      '<div class="muted" style="font-size:11px">'+esc(pmRooms(r.p))+(r.p.address?' \u00b7 '+esc((r.p.address.split(',')[1]||'').trim()||r.p.address.split(',')[0]):'')+'</div></div>'+
+      '<div class="muted pm-mini" style="font-size:11px">'+pmMini(r.p)+(pmCity(r.p)?'<span class="c">'+esc(pmCity(r.p))+'</span>':'')+'</div></div>'+
       '<span class="badge b-low" style="white-space:nowrap">'+pmFmtDist(r.m)+'</span></div>';});
     h+='</div></div>';
     return h;
@@ -2458,9 +2533,11 @@ function pmBoot(){
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
     {attribution:'Tiles \u00a9 Esri',maxZoom:19}).addTo(map);
   PM.map=map;
+  map.on('popupopen',e=>setTimeout(()=>{try{const el=e.popup.getElement();const h=el?el.offsetHeight:0;const px=map.project(e.popup.getLatLng());px.y-=h/2+10;map.panTo(map.unproject(px),{animate:true});}catch(err){}},60));
   PM.cluster=L.markerClusterGroup?L.markerClusterGroup():L.layerGroup();
   map.addLayer(PM.cluster);
   pmDrawMarkers();
+  if(PM.sel)setTimeout(()=>pmSelect(PM.sel),120);
 }
 function pmDrawMarkers(){
   if(!PM.map||!window.L)return;
@@ -2477,14 +2554,48 @@ function pmDrawMarkers(){
     const color=pmColor(p,groups);
     const icon=L.divIcon({className:'pm-dot',html:'<span style="display:block;width:16px;height:16px;border-radius:50%;background:'+color+';border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></span>',iconSize:[16,16],iconAnchor:[8,8]});
     const mk=L.marker([c.lat,c.lng],{icon:icon,draggable:true,title:p.nickname});
-    mk.bindPopup('<strong>'+esc(p.nickname)+'</strong><br>'+esc(pmRooms(p))+(p.address?'<br>'+esc(p.address):'')+
-      '<br><a href="#" onclick="pmSelect(\''+p.id+'\');return false">Show closest</a>'+(c.manual?'<br><small>manually placed</small>':''));
+    mk.bindPopup(()=>pmPopupHTML(p.id),{className:'pm-popup',maxWidth:310,minWidth:300,autoPan:false});
     mk.on('click',()=>{PM.sel=p.id;});
     mk.on('dragend',function(e){const ll=e.target.getLatLng();pmDragSave(p.id,ll.lat,ll.lng);});
     PM.cluster.addLayer(mk);PM.markers[p.id]=mk;pts.push([c.lat,c.lng]);
   });
   if(pts.length){try{PM.map.fitBounds(pts,{padding:[30,30],maxZoom:13});}catch(e){}}
 }
+/* ---- popup (what you see when you click a pin) ---- */
+function pmPopupHTML(id){
+  const p=pmProp(id);if(!p)return '';
+  const groups=pmBuildingGroups();const bi=pmBuildingOf(p,groups);
+  const photos=pmPhotos(p);const i=Math.min(PM.photo[id]||0,Math.max(photos.length-1,0));
+  const links=pmListingLinks(p);const c=pmResolve(p);
+  const dir=p.address?'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(p.address):'';
+  const near=pmClosest(id)[0];
+  let h='<div class="pm-pop">';
+  h+='<div class="pm-pop-img" style="--c:'+pmColor(p,groups)+'">'+
+     (photos.length?'<img id="pmpi-'+id+'" src="'+photos[i]+'" alt="" onclick="lightbox(this.src)">':'<span class="ph">'+PMI_HOUSE+'<small>No photos yet</small></span>')+
+     (photos.length>1?'<button class="nav l" onclick="pmPhoto(\''+id+'\',-1)" aria-label="Previous photo">‹</button><button class="nav r" onclick="pmPhoto(\''+id+'\',1)" aria-label="Next photo">›</button><span class="ct" id="pmpc-'+id+'">'+(i+1)+' / '+photos.length+'</span>':'')+
+     '</div>';
+  h+='<div class="pm-pop-b"><div class="t">'+esc(p.nickname)+'</div>'+
+     '<div class="c">'+esc(pmCity(p)||'')+(bi>=0?' · '+esc(groups[bi].name)+' ('+groups[bi].units.length+' units)':'')+'</div>'+
+     pmSpecs(p,true)+
+     '<div class="f">'+propFeatureIcons(p)+'</div>'+
+     (p.address?'<div class="ad" title="Copy address" onclick="copyText('+esc(JSON.stringify(p.address))+')">'+PMI_PIN+esc(p.address)+'</div>':'')+
+     ((p.checkin||p.checkout)?'<div class="io">Check-in <b>'+esc(p.checkin||'—')+'</b> · Check-out <b>'+esc(p.checkout||'—')+'</b></div>':'')+
+     (near?'<div class="io">Nearest unit: <a onclick="pmSelect(\''+near.p.id+'\')">'+esc(near.p.nickname)+'</a> ('+pmFmtDist(near.m)+')</div>':'')+
+     '<div class="acts"><button class="btn sm" onclick="location.hash=\'properties/'+id+'\'">Open property</button>'+
+       '<button class="btn ghost sm" onclick="pmSelect(\''+id+'\')">Nearby</button>'+
+       (dir?'<a class="btn ghost sm" href="'+dir+'" target="_blank" rel="noopener">Directions</a>':'')+'</div>'+
+     (links.length?'<div class="lk">'+links.map(l=>'<a href="'+esc(l.url)+'" target="_blank" rel="noopener">'+esc(l.label)+' ↗</a>').join('')+'</div>':'')+
+     (c&&c.manual?'<div class="mn">Pin placed by hand</div>':'')+
+     '</div></div>';
+  return h;
+}
+function pmPhoto(id,dir){
+  const photos=pmPhotos(pmProp(id));if(!photos.length)return;
+  PM.photo[id]=((PM.photo[id]||0)+dir+photos.length)%photos.length;
+  const im=document.getElementById('pmpi-'+id);if(im)im.src=photos[PM.photo[id]];
+  const ct=document.getElementById('pmpc-'+id);if(ct)ct.textContent=(PM.photo[id]+1)+' / '+photos.length;
+}
+
 function pmDragSave(id,lat,lng){
   const mp=pmMapPins();mp[id]={lat:lat,lng:lng,manual:true};
   logAct('adjusted','Property',(state.properties.find(p=>p.id===id)||{}).nickname+' map pin');save();
@@ -2494,7 +2605,9 @@ function pmDragSave(id,lat,lng){
   const btn=document.getElementById('pm-geobtn');if(btn&&!PM.geocoding)btn.textContent='Pin remaining ('+pmRemainingCount()+')';
 }
 function pmSelect(id){PM.sel=id;const p=document.getElementById('pm-panel');if(p)p.innerHTML=pmPanelHTML();
-  const c=id&&pmResolve((state.properties||[]).find(x=>x.id===id)||{});if(PM.map&&c){PM.map.setView([c.lat,c.lng],13);const mk=PM.markers[id];if(mk&&mk.openPopup)mk.openPopup();}}
+  const c=id&&pmResolve((state.properties||[]).find(x=>x.id===id)||{});if(PM.map&&c){const mk=PM.markers[id];const open=()=>{if(mk&&mk.openPopup)mk.openPopup();};
+    if(mk&&PM.cluster&&PM.cluster.zoomToShowLayer){PM.cluster.zoomToShowLayer(mk,()=>{if(PM.map.getZoom()<13){PM.map.once('moveend',()=>setTimeout(open,30));PM.map.setView([c.lat,c.lng],13);}else open();});}
+    else{PM.map.setView([c.lat,c.lng],13);open();}}}
 function pmClearSel(){PM.sel='';const p=document.getElementById('pm-panel');if(p)p.innerHTML=pmPanelHTML();}
 function pmSetBuilding(val){PM.building=val;pmDrawMarkers();}
 function pmSearch(val){PM.q=val;pmDrawMarkers();}
@@ -2502,6 +2615,14 @@ function pmAddAddress(id){location.hash='properties/'+id;setTimeout(()=>{if(type
 
 /* ---- geocoding (OpenStreetMap / Nominatim), throttled + cached ---- */
 function pmSleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function pmGeoQueries(p){
+  const a=pmNormAddr(p);const out=[a];
+  const fixed=a.replace(/\b(\d{5})\d+\b/,'$1').replace(/\s+/g,' ');if(fixed!==a)out.push(fixed);
+  const street=a.split(',')[0].replace(/\b(unit|apt|suite|ste|#)\s*[a-z0-9\-]+/ig,'').replace(/\.\s*$/,'').trim();
+  const city=pmCity(p);
+  if(city)out.push(street.replace(new RegExp('\\s+'+city+'\\s*$','i'),'')+', '+city+', CA');
+  return [...new Set(out)];
+}
 async function pmGeocodeRemaining(){
   if(PM.geocoding)return;PM.geocoding=true;
   const btn=document.getElementById('pm-geobtn');
@@ -2510,14 +2631,17 @@ async function pmGeocodeRemaining(){
   let done=0;
   for(const p of todo){
     if(btn)btn.textContent='Geocoding\u2026 '+done+'/'+todo.length;
-    const q=pmNormAddr(p);
-    try{
-      const res=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q),{headers:{'Accept':'application/json'}});
-      const j=await res.json();
-      if(j&&j[0]){cache[q]={lat:parseFloat(j[0].lat),lng:parseFloat(j[0].lon)};pmGeoSave(cache);}
-    }catch(e){}
+    for(const q of pmGeoQueries(p)){
+      let ok=false;
+      try{
+        const res=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q='+encodeURIComponent(q),{headers:{'Accept':'application/json'}});
+        const j=await res.json();
+        if(j&&j[0]){cache[pmNormAddr(p)]={lat:parseFloat(j[0].lat),lng:parseFloat(j[0].lon)};pmGeoSave(cache);ok=true;}
+      }catch(e){}
+      await pmSleep(1100); // Nominatim politeness: <=1 req/sec
+      if(ok)break;
+    }
     done++;
-    await pmSleep(1100); // Nominatim politeness: <=1 req/sec
   }
   PM.geocoding=false;
   render('propmap');
